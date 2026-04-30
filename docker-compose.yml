@@ -1,0 +1,57 @@
+version: "3.8"
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: certify-postgres
+    environment:
+      POSTGRES_DB: certificate_db
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: smartgrow123
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    networks:
+      - certify-network
+
+  backend:
+    build: ./backend
+    container_name: certify-backend
+    environment:
+      SPRING_PROFILES_ACTIVE: docker
+    ports:
+      - "8080:8080"
+    volumes:
+      - cert_data:/app/data
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - certify-network
+
+  frontend:
+    build:
+      context: ./frontend
+      args:
+        REACT_APP_API_URL: /api
+    container_name: certify-frontend
+    ports:
+      - "3000:3000"
+    depends_on:
+      - backend
+    networks:
+      - certify-network
+
+volumes:
+  postgres_data:
+  cert_data:
+
+networks:
+  certify-network:
+    driver: bridge
